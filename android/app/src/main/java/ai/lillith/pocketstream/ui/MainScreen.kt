@@ -9,6 +9,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ai.lillith.pocketstream.data.SettingsRepository
@@ -26,7 +28,7 @@ fun MainScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var lastUrl by remember { mutableStateOf<String?>(null) }
     var lastResult by remember { mutableStateOf<String?>(null) }
-    var hasEnqueuedSharedUrl by remember { mutableStateOf(false) }
+    var lastEnqueuedUrl by remember { mutableStateOf<String?>(null) }
 
     // Load last result from DataStore
     LaunchedEffect(Unit) {
@@ -40,13 +42,13 @@ fun MainScreen(
 
     // Auto-enqueue shared URL
     LaunchedEffect(sharedUrl) {
-        if (sharedUrl != null && !hasEnqueuedSharedUrl) {
-            hasEnqueuedSharedUrl = true
+        if (sharedUrl != null && sharedUrl != lastEnqueuedUrl) {
             isProcessing = true
             val result = api.enqueue(sharedUrl)
             isProcessing = false
 
             result.onSuccess { response ->
+                lastEnqueuedUrl = sharedUrl
                 val msg = if (response.message != null) {
                     "${response.status}: ${response.message}"
                 } else {
@@ -57,6 +59,7 @@ fun MainScreen(
                 settingsRepository.saveLastResult(sharedUrl, msg)
                 snackbarHostState.showSnackbar("✓ $msg")
             }.onFailure { error ->
+                // Don't set lastEnqueuedUrl — allow retry
                 val msg = "Failed: ${error.message}"
                 lastUrl = sharedUrl
                 lastResult = msg
@@ -65,6 +68,9 @@ fun MainScreen(
             }
         }
     }
+
+    val clipboardManager = LocalClipboardManager.current
+    val feedUrl = "${api.currentConfig.baseUrl}/api/feed.xml"
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -157,6 +163,17 @@ fun MainScreen(
                         )
                     }
                 }
+            }
+
+            // Copy RSS feed link button
+            TextButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(feedUrl))
+                }
+            ) {
+                Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Copy RSS feed link")
             }
 
             if (isProcessing) {

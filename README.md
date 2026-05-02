@@ -41,6 +41,26 @@ Copy `.env.example` to `.env` and configure:
 | `POCKETSTREAM_MAX_QUEUE_SIZE` | `50` | Max items in the download queue |
 | `POCKETSTREAM_DATA_DIR` | `/data` | Data directory for DB, audio, and feed |
 
+## Network & Security
+
+PocketStream is designed for **LAN + Tailscale** access. No authentication is required beyond the API key for enqueue.
+
+**Recommendations:**
+- Use [Tailscale](https://tailscale.com) or a similar mesh VPN to connect your phone to the backend
+- Do **not** expose the backend directly to the public internet without adding proper auth
+- The RSS feed (`/api/feed.xml`) and audio files are served without auth so podcast players can access them
+- All traffic is HTTP by default — wrap in TLS if you need encryption
+
+## Feed URL
+
+Once the backend is running, add this URL to any podcast app:
+
+```
+http://your-host:8080/api/feed.xml
+```
+
+The Android companion app has a "Copy RSS Link" button to grab this easily.
+
 ## Android App
 
 ### Building

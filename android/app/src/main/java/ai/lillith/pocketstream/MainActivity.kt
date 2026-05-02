@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,6 +18,8 @@ import ai.lillith.pocketstream.ui.SettingsScreen
 import ai.lillith.pocketstream.ui.theme.PocketStreamTheme
 
 class MainActivity : ComponentActivity() {
+    private val sharedUrlState = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -27,8 +30,8 @@ class MainActivity : ComponentActivity() {
             ""
         )
 
-        // Extract shared URL if launched via share intent
-        val sharedUrl = extractSharedUrl(intent)
+        // Set initial shared URL
+        sharedUrlState.value = extractSharedUrl(intent)
 
         setContent {
             PocketStreamTheme {
@@ -44,7 +47,7 @@ class MainActivity : ComponentActivity() {
                             settingsRepository = settingsRepository,
                             api = api,
                             onNavigateToSettings = { navController.navigate("settings") },
-                            sharedUrl = sharedUrl,
+                            sharedUrl = sharedUrlState.value,
                             snackbarHostState = snackbarHostState
                         )
                     }
@@ -63,11 +66,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Handle subsequent share intents while activity is alive
-        // For simplicity, recreate to pick up new shared URL
-        val sharedUrl = extractSharedUrl(intent)
-        if (sharedUrl != null) {
-            recreate()
+        val url = extractSharedUrl(intent)
+        if (url != null) {
+            sharedUrlState.value = url
         }
     }
 
@@ -80,22 +81,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractYouTubeUrl(text: String): String? {
-        // Match YouTube URLs in the shared text
-        val patterns = listOf(
-            Regex("""https?://(?:www\.)?youtube\.com/watch\?v=\S+"""),
-            Regex("""https?://(?:www\.)?youtube\.com/shorts/\S+"""),
-            Regex("""https?://youtu\.be/\S+"""),
-            Regex("""https?://(?:m\.)?youtube\.com/watch\?v=\S+"""),
-            Regex("""https?://music\.youtube\.com/watch\?v=\S+""")
+        // Extract video ID from various YouTube URL formats
+        val videoIdPattern = Regex(
+            """(?:youtube\.com/(?:watch\?.*v=|shorts/|embed/)|youtu\.be/|music\.youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})"""
         )
-
-        for (pattern in patterns) {
-            val match = pattern.find(text)
-            if (match != null) {
-                // Clean up trailing punctuation/whitespace
-                return match.value.trimEnd(')', ']', '}', ',', '.', ' ', '\n')
-            }
-        }
-        return null
+        val match = videoIdPattern.find(text)
+        return match?.let { "https://www.youtube.com/watch?v=${it.groupValues[1]}" }
     }
 }

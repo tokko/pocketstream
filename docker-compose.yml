@@ -1,0 +1,13 @@
+services:
+  pocketstream:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - pocketstream-data:/data
+      - /home/pi/.mozilla/firefox:/root/.mozilla/firefox:ro
+    env_file: .env
+    restart: unless-stopped
+
+volumes:
+  pocketstream-data:
